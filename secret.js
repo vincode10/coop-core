@@ -1,15 +1,19 @@
-// secret.js — signing-key management with zero-downtime rotation (STATUS §D).
-// `COOPBITE_SECRET` may be a comma-separated list of keys. The FIRST key is "current" and
+// secret.js — signing-key management with zero-downtime rotation.
+// The signing secret may be a comma-separated list of keys. The FIRST key is "current" and
 // signs all new tokens/hashes; EVERY key is accepted on verification. To rotate without
 // invalidating live tokens: prepend the new key (`new,old`), deploy, let old tokens expire,
 // then drop the old key. Used by auth bearer tokens, password-reset and OTP hashes.
+//
+// Source env (first set wins): COOP_SECRET (canonical shared) → COOPBITE_SECRET → BUNJI_SECRET
+// → fallback. The per-app legacy names are kept for back-compat so neither app breaks.
 'use strict';
 const crypto = require('node:crypto');
-const FALLBACK = 'coopbite-pilot-secret-change-me';
+const FALLBACK = 'coop-core-pilot-secret-change-me';
 
 /** All active keys, current first. Always ≥ 1 entry. */
 function all() {
-  const keys = (process.env.COOPBITE_SECRET || FALLBACK).split(',').map(s => s.trim()).filter(Boolean);
+  const raw = process.env.COOP_SECRET || process.env.COOPBITE_SECRET || process.env.BUNJI_SECRET || FALLBACK;
+  const keys = raw.split(',').map(s => s.trim()).filter(Boolean);
   return keys.length ? keys : [FALLBACK];
 }
 /** The current signing key. */

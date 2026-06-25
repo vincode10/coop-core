@@ -4,11 +4,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const secret = require('../secret');
-const ORIG = process.env.COOPBITE_SECRET;
-test.after(() => { if (ORIG === undefined) delete process.env.COOPBITE_SECRET; else process.env.COOPBITE_SECRET = ORIG; });
+const ENVS = ['COOP_SECRET', 'COOPBITE_SECRET', 'BUNJI_SECRET'];
+const ORIG = Object.fromEntries(ENVS.map(k => [k, process.env[k]]));
+test.after(() => { for (const k of ENVS) { if (ORIG[k] === undefined) delete process.env[k]; else process.env[k] = ORIG[k]; } });
 
-test('falls back to a single key when unset', () => {
-  delete process.env.COOPBITE_SECRET;
+test('falls back to a single key when no secret env is set', () => {
+  for (const k of ENVS) delete process.env[k];
   assert.deepEqual(secret.all(), [secret.FALLBACK]);
   assert.equal(secret.current(), secret.FALLBACK);
 });
