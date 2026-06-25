@@ -1,0 +1,25 @@
+{
+  "name": "coop-core",
+  "version": "0.1.0",
+  "description": "Shared, domain-agnostic platform plumbing for cooperative apps (CoopBite, Bunji Ride). Zero runtime dependencies.",
+  "type": "commonjs",
+  "exports": {
+    "./secret": "./secret.js",
+    "./errors": "./errors.js",
+    "./oidc": "./oidc.js",
+    "./screening": "./screening.js",
+    "./registry": "./registry.js"
+  },
+  "files": ["*.js"],
+  "scripts": {
+    "pretest": "node scripts/lint-syntax.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --test-force-exit tests/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "AGPL-3.0",
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "typescript": "^5.9.3"
+  }
+}
