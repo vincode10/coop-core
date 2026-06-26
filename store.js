@@ -133,6 +133,9 @@ function createStore(config) {
       await pgOne(`CREATE INDEX IF NOT EXISTS ${PREFIX}archive_kind ON ${ARCHIVE} (kind, seq)`);
       for (const { table, cols } of Object.values(SPLIT)) {
         await pgOne(`CREATE TABLE IF NOT EXISTS ${table} (id text PRIMARY KEY, data jsonb NOT NULL, ${cols.map(c => `${c[0]} ${c[2]}`).join(', ')})`);
+        // Additive schema evolution: a column added to a SPLIT later must also exist on a
+        // table created by an earlier deploy (idempotent — no-op when already present).
+        for (const c of cols) await pgOne(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${c[0]} ${c[2]}`);
       }
       for (const [name, target] of INDEXES) await pgOne(`CREATE INDEX IF NOT EXISTS ${name} ON ${target}`);
       await pgOne(`INSERT INTO ${DOC} (id, data) VALUES (1, $1) ON CONFLICT (id) DO NOTHING`, [JSON.stringify(empty())]);
