@@ -39,8 +39,9 @@ function createStore(config) {
   const USERS = config.usersKey || 'users';
   const USERS_TABLE = (SPLIT[USERS] && SPLIT[USERS].table) || (PREFIX + 'users');
   const SLOW_MS = Number(config.slowMs) || 200;
-  const LOG_CAP_OVERRIDE = Number(config.logCapOverride) || 0;
-  const logCap = kind => LOG_CAP_OVERRIDE || LOG_HOT_CAP[kind];
+  // logCapOverride may be a number or a function (read dynamically, e.g. from an env var).
+  const capOverride = () => (typeof config.logCapOverride === 'function' ? Number(config.logCapOverride()) : Number(config.logCapOverride)) || 0;
+  const logCap = kind => capOverride() || LOG_HOT_CAP[kind];
 
   const MODE = (PG_URL || PGLITE) ? 'pg' : 'file';
 
