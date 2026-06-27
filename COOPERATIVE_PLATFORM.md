@@ -128,13 +128,16 @@ Member {
 Each phase ships independently, behind the same verification bar used for the coop-core work
 (full suites green + read-only prod smoke; never a risky live-data move without a reversible plan).
 
-- **P0 — Platform framing (docs + scaffolding).** This document; reframe `coop-core` as the
-  platform; add cooperative-level module stubs (`coop-core/membership`, `…/governance`,
-  `…/treasury`) with the target interfaces, no behaviour change yet. *(safe, now)*
-- **P1 — One member directory.** Introduce the shared `coop_members` collection in the store
-  engine; have both apps read/write members there (compose into each app's store). Backfill from
-  `cb_users`/`br_users`. SSO falls out (one token domain already exists). *The big one — staged,
-  with a backfill + dual-read window.*
+- **P0 — Platform framing (docs + member model).** ✅ DONE (`coop-core#v0.7.0`). This document;
+  README reframed as the platform; `coop-core/cooperative` — the member **service-role** model
+  (`hasServiceRole`/`requireServiceRole`/`enrol`) with a legacy flat-role fallback. Additive.
+- **P1 — One member directory.** ▶ MECHANISM BUILT (`coop-core#v0.8.0`, gated). `coop-core/members`
+  is the shared directory over a cooperative DB (`COOP_DATABASE_URL`), with `backfill()` that
+  dedups each service's users by email and merges service enrolments (one person → one member
+  across services) and returns an id-map for the cutover. **Falls back to the service's own store
+  when no shared DB is set → zero prod effect today.** *Remaining (the cutover, needs the shared
+  DB provisioned): run the backfill, set `user.memberId`, route auth through the directory, dual-read
+  window, verify, flip. Runbook in `members.js`.*
 - **P2 — Service enrolment & roles.** Move service roles onto the member record; `requireRole` →
   `requireServiceRole`. Cross-service login works.
 - **P3 — Cooperative governance.** One `coop-core/governance` over the shared store; migrate both
