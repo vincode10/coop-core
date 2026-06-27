@@ -1,9 +1,16 @@
-# coop-core
+# coop-core — the cooperative platform
 
-Shared, **zero-runtime-dependency** platform plumbing for cooperative apps
-([CoopBite](https://github.com/vincode10/coopbite), Bunji Ride). Extracted so the common
-backend is written once and can't drift between apps. See the extraction plan in CoopBite's
-`docs/COOP_CORE_EXTRACTION_PLAN.md`.
+The shared, **zero-runtime-dependency** backend for **one cooperative with many member
+services**. People are members of *the cooperative*; the cooperative offers a family of
+services — [CoopBite](https://github.com/vincode10/coopbite) (fair food delivery), Bunji Ride
+(inclusive ride-hailing), and more — that plug into shared **identity, membership, governance
+and treasury** while keeping their own domain operations.
+
+- **North star:** [`COOPERATIVE_PLATFORM.md`](COOPERATIVE_PLATFORM.md) — one co-op, many services.
+- **How the shared infra got here:** CoopBite's `docs/COOP_CORE_EXTRACTION_PLAN.md` (Phases 1–3).
+
+*Today it is the shared infrastructure layer (below); it is evolving into the full cooperative
+platform per the north-star doc.*
 
 **Consumed by:** CoopBite (`coop-core#v0.3.0`) and Bunji Ride (`coop-core#v0.3.0`).
 
@@ -15,11 +22,25 @@ Pinned by Git tag (public repo, no auth needed in CI/Vercel):
 npm install github:vincode10/coop-core#v0.3.0
 ```
 
-## Modules (11 — Phases 1, 2a, 2b)
+## Modules
+
+**Cooperative layer** (the platform — see the north-star doc):
+
+| import | what |
+|---|---|
+| `coop-core/cooperative` | Cooperative identity + the member **service-role** model (`hasServiceRole`/`requireServiceRole`/`enrol`), with a legacy flat-role fallback for incremental adoption. |
+| `coop-core/governance` | *(planned P3)* one cooperative governance — proposals + one-member-one-vote, co-op-wide. |
+| `coop-core/treasury` | *(planned P4)* one cooperative treasury — surplus pooling + member dividends. |
+
+**Shared infrastructure** (Phases 1–3 — written once, can't drift):
 
 | import | what |
 |---|---|
 | `coop-core/secret` | Rotating signing keys — `COOP_SECRET`/`COOPBITE_SECRET`/`BUNJI_SECRET` as a comma-separated list; first signs, all verify (zero-downtime rotation). |
+| `coop-core/auth` | scrypt `hashPassword`/`verifyPassword`, `requireRole`, the bearer-token codec (`tokenSign`/`tokenVerify`) + `createUserFromReq(store)`. |
+| `coop-core/store` | `createStore({emptyDoc, split, …})` — file+pg persistence engine (per-write tx, split tables, archive, metrics, replica routing). |
+| `coop-core/settings` | `createSettings({store, defaults, limits})` — persistent, validated, audited board config. |
+| `coop-core/compliance` | `createCompliance({catalogue})` — onboarding evaluator; each app injects its role catalogue. |
 | `coop-core/auth` | Share-safe scrypt `hashPassword`/`verifyPassword` + `requireRole` guard. |
 | `coop-core/mfa` | **Encoding-agnostic** TOTP (RFC 6238) — `{encoding:'hex'\|'base32'}`; apps keep their stored-secret format. |
 | `coop-core/errors` | Sentry-compatible exception reporter (gated on `SENTRY_DSN`; set `APP_VERSION` for release tagging). |
