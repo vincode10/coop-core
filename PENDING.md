@@ -5,9 +5,29 @@
 
 ---
 
-## ▶ IMMEDIATE RESUME POINT — Platform P1 cutover (auth → shared directory)
+## ▶ IMMEDIATE RESUME POINT — Platform P2 (service roles + SSO via the directory)
 
-**DONE (28 Jun 2026):** shared directory **provisioned + backfilled + verified**.
+**P1 COMPLETE (28 Jun 2026):** the shared member directory is provisioned, backfilled, and
+**self-maintaining** — both apps (CoopBite v2.35.0, Bunji) feed new registrations into it
+(`members.upsertFromUser`, gated on `COOP_DATABASE_URL`, fire-and-forget; coop-core#v0.8.2).
+Verified: 15 members intact, both apps healthy, logins work.
+
+**NEXT — P2 (the deep, careful one): make the apps USE the directory for auth/SSO.**
+- Persist the `idMap` → `user.memberId` on each service user (links service data → member).
+- Member-scoped tokens: login issues `{ uid, mid }`; `userFromReq` resolves cross-service via the
+  member directory **with fallback-to-local on any error** (login must never hard-depend on the
+  3rd DB). A CoopBite token then works on Bunji → real SSO.
+- `requireRole` → `requireServiceRole(member, service, role)` (`coop-core/cooperative` model);
+  handlers read their local service-user by `memberId`.
+- Handle the no-email backfill edge (phone/source secondary dedup key) before any re-backfill.
+
+This is a multi-route auth refactor across two live apps — stage it, with the resilient fallback.
+
+---
+
+## P1 details (done)
+
+**Shared directory provisioned + backfilled + register-sync.**
 - Neon project **`the-cooperative`** (Sydney) created; its `neondb` is the cooperative DB
   (the `cooperative` db name didn't get created — using the project default, which is fine since
   the directory tables are `coop_`-prefixed). `COOP_DATABASE_URL` set in **both** Vercel projects
