@@ -5,23 +5,37 @@
 
 ---
 
-## ▶ IMMEDIATE RESUME POINT — Platform P2 (service roles + SSO via the directory)
+## ▶ IMMEDIATE RESUME POINT — Platform P2: CODE COMPLETE, CUTOVER + DEPLOY PENDING (29 Jun 2026)
 
-**P1 COMPLETE (28 Jun 2026):** the shared member directory is provisioned, backfilled, and
-**self-maintaining** — both apps (CoopBite v2.35.0, Bunji) feed new registrations into it
-(`members.upsertFromUser`, gated on `COOP_DATABASE_URL`, fire-and-forget; coop-core#v0.8.2).
-Verified: 15 members intact, both apps healthy, logins work.
+**P2 code is built, wired into BOTH apps, and fully tested (coop-core#v0.9.1).** Nothing is
+deployed and no prod data has been touched yet — what remains is the gated ops cutover + deploy.
 
-**NEXT — P2 (the deep, careful one): make the apps USE the directory for auth/SSO.**
-- Persist the `idMap` → `user.memberId` on each service user (links service data → member).
-- Member-scoped tokens: login issues `{ uid, mid }`; `userFromReq` resolves cross-service via the
-  member directory **with fallback-to-local on any error** (login must never hard-depend on the
-  3rd DB). A CoopBite token then works on Bunji → real SSO.
-- `requireRole` → `requireServiceRole(member, service, role)` (`coop-core/cooperative` model);
-  handlers read their local service-user by `memberId`.
-- Handle the no-email backfill edge (phone/source secondary dedup key) before any re-backfill.
+**Done (all gated on `COOP_DATABASE_URL`, all resilient with fallback-to-local):**
+- coop-core#v0.9.1: `auth.createMemberResolver({store, members})` — member-scoped `{uid, mid}` token
+  → local user enriched with the cooperative member; cross-app tokens resolve OUR local user via
+  `store.getUserByMemberId` (real SSO). Directory work is wrapped so it can **never break login**;
+  `_member` is attached non-enumerably (never persisted) and always set/cleared per request (no
+  stale roles). `auth.requireRoleFor(service)` — drop-in `requireRole` using the cooperative
+  service-role model when a member is attached, else legacy `user.role` (so **all 109 CoopBite +
+  all Bunji call sites are unchanged**). New engine lookups `getUserByMemberId` + `getUserByPhone`.
+- **No-email re-backfill edge FIXED:** `members.upsertFromUser` dedups `memberId → email → phone`,
+  records `services[svc].userId` — re-backfill is now idempotent.
+- Both apps wired: `server/directory.js` singleton; `userFromReq = createMemberResolver(...)`;
+  `requireRole = requireRoleFor('coopbite'|'bunji')`; login tokens carry `mid`; register +
+  OIDC paths persist `user.memberId`. Tests green: CoopBite 234, Bunji 73, coop-core 69.
+- Migration script `scripts/link-members.js` in BOTH apps (idempotent, `--dry-run`): re-backfills +
+  persists `user.memberId` on every local user.
 
-This is a multi-route auth refactor across two live apps — stage it, with the resilient fallback.
+**REMAINING — the cutover (run with env; then deploy):**
+1. **`COOP_SECRET` must be IDENTICAL in both apps' Vercel env** for cross-app tokens to verify —
+   that's what makes SSO actually work. (Today each app may use its own `COOPBITE_SECRET`/
+   `BUNJI_SECRET`, which differ. Set the same `COOP_SECRET` in both; it takes precedence.)
+2. Run the migration once per app with env pulled:
+   `COOP_DATABASE_URL=… POSTGRES_URL=… node scripts/link-members.js` (try `--dry-run` first).
+3. Deploy both apps (CoopBite git-auto-deploys; Bunji manual). Read-only prod smoke: login/me on
+   both, then a CoopBite token against a Bunji route for the same member → SSO.
+
+App code changes are **uncommitted** in `~/coopbite` + `~/bunjiride` (commit at deploy time).
 
 ---
 
@@ -58,7 +72,7 @@ This is a multi-route auth refactor across two live apps — stage it, with the 
 |---|---|---|---|
 | P0 | Platform framing + `coop-core/cooperative` member-role model | — | ✅ done (v0.7.0) |
 | P1 | Shared member directory `coop-core/members` — provisioned, backfilled (15 members), **register-sync live on both apps** | done (v0.8.2; CoopBite v2.35.0) | ✅ done |
-| P2 | **Auth + SSO via the directory** — member-scoped tokens, `userFromReq` cross-service w/ fallback-to-local, `requireRole`→`requireServiceRole`, persist `user.memberId` | the deep one | ▶ NEXT |
+| P2 | **Auth + SSO via the directory** — member-scoped tokens, `userFromReq` cross-service w/ fallback-to-local, `requireRoleFor(service)`, persist `user.memberId`, dedup-safe re-backfill | done (coop-core v0.9.1; both apps wired + tested) | 🔨 code done — cutover+deploy pending |
 | P3 | **Cooperative governance** (one member-one-vote, co-op-wide) — *resolves old Phase 4* | after P2 | ⏳ pending |
 | P4 | **Cooperative treasury** — pooled surplus, dividends, Safety Fund as co-op instruments | after P2 | ⏳ pending |
 | P5 | New-service template (boot a service on the platform) | after P1–P4 | ⏳ pending |
@@ -116,12 +130,14 @@ All wired, no-op until configured. See each app's `docs/STATUS.md` / `API.md`.
 
 ---
 
-## State snapshot (28 Jun 2026)
+## State snapshot (29 Jun 2026)
 
-- **coop-core** `v0.8.2` · master · 64 tests · public repo · 17 modules.
+- **coop-core** `v0.9.1` · master · 69 tests · public repo · 17 modules · P2 auth primitives shipped.
 - **CoopBite** `v2.35.0` live at coopbite.vercel.app · CI green · 234 tests · git-auto-deploys ·
-  on `coop-core#v0.8.2`.
-- **Bunji Ride** live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.8.2` · **manual deploy**
+  **local working tree** on `coop-core#v0.9.1` with P2 wiring (uncommitted, NOT yet deployed; prod
+  still runs `coop-core#v0.8.2`).
+- **Bunji Ride** live at bunjiride.vercel.app · 73 tests · **local working tree** on
+  `coop-core#v0.9.1` with P2 wiring (uncommitted, NOT yet deployed) · **manual deploy**
   (`vercel deploy --prod --yes --scope vincode10s-projects`; *not* git-auto-deploy).
 - **The Cooperative** Neon DB (Sydney) live · `coop_members` = 15 members · `COOP_DATABASE_URL`
   set in both Vercel projects (Production + Development).
