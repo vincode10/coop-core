@@ -88,6 +88,24 @@ test('createMemberResolver: enriches same-app user, SSO cross-app, fallback-to-l
   delete process.env.COOP_SECRET;
 });
 
+test('createMemberResolver never leaves a stale _member when the directory later fails', async () => {
+  process.env.COOP_SECRET = 'k1';
+  const live = { id: 'usr_1', role: 'customer', memberId: 'mbr_1' };  // file mode reuses ONE object
+  const store = { getUser: async () => live };
+  const member = { id: 'mbr_1', services: { coopbite: { roles: ['customer'] } } };
+  let up = true;
+  const members = { shared: true, getById: async () => { if (!up) throw new Error('down'); return member; } };
+  const resolver = auth.createMemberResolver({ store, members });
+  const bearer = { headers: { authorization: 'Bearer ' + auth.tokenSign({ uid: 'usr_1', mid: 'mbr_1', exp: Date.now() + 60000 }) } };
+
+  const a = await resolver(bearer);
+  assert.equal(a._member.id, 'mbr_1');       // directory up → attached
+  up = false;
+  const b = await resolver(bearer);          // same object, directory now down
+  assert.equal(b._member, undefined);        // stale attach cleared (no lingering elevated roles)
+  delete process.env.COOP_SECRET;
+});
+
 test('createUserFromReq resolves Bearer → unexpired token → store.getUser', async () => {
   process.env.COOP_SECRET = 'k1';
   const store = { getUser: async id => (id === 'u1' ? { id: 'u1', role: 'rider' } : null) };

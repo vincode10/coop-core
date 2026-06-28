@@ -39,7 +39,9 @@ function createUserFromReq(store) {
  *  non-enumerable property is invisible to JSON.stringify and `{...spread}`, so it never leaks
  *  into the store's `data` column or split-table columns even if the user is later saved. */
 function attachMember(user, member) {
-  if (user && member) Object.defineProperty(user, '_member', { value: member, enumerable: false, configurable: true, writable: true });
+  if (!user) return user;
+  if (member) Object.defineProperty(user, '_member', { value: member, enumerable: false, configurable: true, writable: true });
+  else if ('_member' in user) delete user._member; // clear any stale attach (file mode reuses the object)
   return user;
 }
 
@@ -73,11 +75,12 @@ function createMemberResolver({ store, members } = {}) {
 
     // Best-effort cooperative enrichment + cross-service resolution (fallback-to-local on any error).
     if (members && members.shared && payload.mid) {
+      let member = null;
       try {
         if (!user && store.getUserByMemberId) user = await store.getUserByMemberId(payload.mid); // SSO
-        const member = await members.getById(payload.mid);
-        attachMember(user, member);
-      } catch { /* directory unavailable — keep the local user (or null) */ }
+        member = await members.getById(payload.mid);
+      } catch { member = null; /* directory unavailable — keep the local user (or null) */ }
+      attachMember(user, member); // always set/clear from this request's fresh lookup (no stale _member)
     }
     return user;
   };
