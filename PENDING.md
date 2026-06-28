@@ -57,21 +57,23 @@ This is a multi-route auth refactor across two live apps — stage it, with the 
 | Phase | What | Needs | Status |
 |---|---|---|---|
 | P0 | Platform framing + `coop-core/cooperative` member-role model | — | ✅ done (v0.7.0) |
-| P1 | Shared member directory `coop-core/members` | mechanism ✅ (v0.8.0); **cutover needs `COOP_DATABASE_URL`** | ▶ in progress |
-| P2 | Service enrolment & roles — adopt `requireServiceRole`; `member.services.{svc}.roles` | infra-free | ⏳ pending |
-| P3 | **Cooperative governance** (one member-one-vote, co-op-wide) — *resolves old Phase 4* | after P1 | ⏳ pending |
-| P4 | **Cooperative treasury** — pooled surplus, dividends, Safety Fund as co-op instruments | after P1 | ⏳ pending |
+| P1 | Shared member directory `coop-core/members` — provisioned, backfilled (15 members), **register-sync live on both apps** | done (v0.8.2; CoopBite v2.35.0) | ✅ done |
+| P2 | **Auth + SSO via the directory** — member-scoped tokens, `userFromReq` cross-service w/ fallback-to-local, `requireRole`→`requireServiceRole`, persist `user.memberId` | the deep one | ▶ NEXT |
+| P3 | **Cooperative governance** (one member-one-vote, co-op-wide) — *resolves old Phase 4* | after P2 | ⏳ pending |
+| P4 | **Cooperative treasury** — pooled surplus, dividends, Safety Fund as co-op instruments | after P2 | ⏳ pending |
 | P5 | New-service template (boot a service on the platform) | after P1–P4 | ⏳ pending |
 
-**Note:** P2 (service-role model adoption in each app's authorization) does **not** need the shared
-DB and could be done now if you'd rather make progress while the directory is being provisioned.
+**P2 is the big, risky one** — a multi-route auth refactor across two live apps. Bake in the
+fallback-to-local so login can never hard-depend on the cooperative DB. Also fix the no-email
+backfill dedup (phone/source key) before any re-backfill.
 
 ---
 
 ## coop-core extraction — done; two intentional non-items
 
-The shared-infra extraction (Phases 1–3) is **complete and live on both apps** — 16 modules at
-`coop-core#v0.8.0`. Deliberately **not** extracted (documented decisions, not omissions):
+The shared-infra extraction (Phases 1–3) is **complete and live on both apps** — 17 modules at
+`coop-core#v0.8.2` (incl. the platform modules `cooperative` + `members`). Deliberately **not**
+extracted (documented decisions, not omissions):
 - **`metrics` / `storage` / `push`** — CoopBite-only (Bunji has none) → no drift to prevent. Extract
   only if/when Bunji needs them.
 - **Per-app `login` / `publicUser` / MFA flow** — genuinely differ (CoopBite 2-step `mfaPending`
@@ -116,9 +118,13 @@ All wired, no-op until configured. See each app's `docs/STATUS.md` / `API.md`.
 
 ## State snapshot (28 Jun 2026)
 
-- **coop-core** `v0.8.0` · master · 63 tests · public repo.
-- **CoopBite** `v2.34.0` live at coopbite.vercel.app · CI green · 234 tests · git-auto-deploys.
-- **Bunji Ride** live at bunjiride.vercel.app · 73 tests · **manual deploy** (`vercel deploy --prod
-  --yes --scope vincode10s-projects`; *not* git-auto-deploy).
+- **coop-core** `v0.8.2` · master · 64 tests · public repo · 17 modules.
+- **CoopBite** `v2.35.0` live at coopbite.vercel.app · CI green · 234 tests · git-auto-deploys ·
+  on `coop-core#v0.8.2`.
+- **Bunji Ride** live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.8.2` · **manual deploy**
+  (`vercel deploy --prod --yes --scope vincode10s-projects`; *not* git-auto-deploy).
+- **The Cooperative** Neon DB (Sydney) live · `coop_members` = 15 members · `COOP_DATABASE_URL`
+  set in both Vercel projects (Production + Development).
 - Marketing site live at coopbite-site.vercel.app (+ `/posts`).
-- All three repos clean (0 uncommitted).
+- All three repos clean (0 tracked changes). *(Note: an unrelated Obsidian vault sits untracked at
+  `~/coopbite/coopbite/` — user's, not part of the repo.)*
