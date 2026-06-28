@@ -8,13 +8,18 @@
 // OWN store (its existing `users`), so nothing changes until the cooperative DB is provisioned
 // and the one-time backfill is run. Activation runbook at the bottom of this file.
 'use strict';
+const crypto = require('node:crypto');
 const { createStore } = require('./store');
 const { enrol } = require('./cooperative');
 
-/** Map a service user record → a cooperative member record (identity + one service enrolment). */
-function toMember(user, service) {
+/** A fresh, globally-unique cooperative member id (service user-ids can collide across apps). */
+const newMemberId = () => 'mbr_' + crypto.randomBytes(8).toString('hex');
+
+/** Map a service user record → a cooperative member record (identity + one service enrolment).
+ *  `id` (optional) sets the member id; otherwise an existing `memberId` or a fresh unique id. */
+function toMember(user, service, id) {
   const m = {
-    id: user.memberId || user.id,
+    id: id || user.memberId || newMemberId(),
     name: user.name || null,
     email: (user.email || '').toLowerCase() || null,
     phone: user.phone || null,

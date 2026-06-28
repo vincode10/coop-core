@@ -35,8 +35,21 @@ test('shared mode: backfill dedups by email and merges service enrolments across
   assert.deepEqual(asha.services.coopbite.roles, ['customer']);
   assert.deepEqual(asha.services.bunji.roles, ['rider']);
   assert.equal(asha.passHash, 'h1');                          // identity preserved from first source
-  assert.equal((await members.getById('u_1')).id, 'u_1');
-  assert.equal(r2.idMap['usr_asha'], 'u_1');                  // Bunji's user maps to the existing member id
+  // member ids are fresh + globally unique (service user-ids can collide across apps);
+  // each service user links to its member via the idMap.
+  assert.match(asha.id, /^mbr_/);
+  assert.equal(r1.idMap['u_1'], asha.id);                     // CoopBite's user → this member
+  assert.equal(r2.idMap['usr_asha'], asha.id);               // Bunji's same-email user → SAME member
+  assert.notEqual(r1.idMap['u_1'], r1.idMap['u_2']);          // distinct people, distinct members
+  assert.equal((await members.getById(asha.id)).email, 'asha@x.com');
+});
+
+test('collision-safe: same service-user-id in two apps → two distinct members', async () => {
+  const members = createMembers({ pglite: true });
+  const a = await members.backfill([{ id: 'usr_1008', email: 'p1@x.com', role: 'customer' }], 'coopbite');
+  const b = await members.backfill([{ id: 'usr_1008', email: 'p2@y.com', role: 'rider' }], 'bunji');  // different person, same id
+  assert.equal(await members.count(), 2);                     // not overwritten
+  assert.notEqual(a.idMap['usr_1008'], b.idMap['usr_1008']);
 });
 
 test('local mode: delegates to the service store; writes are refused', async () => {
