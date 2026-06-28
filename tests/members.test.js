@@ -52,6 +52,42 @@ test('collision-safe: same service-user-id in two apps → two distinct members'
   assert.notEqual(a.idMap['usr_1008'], b.idMap['usr_1008']);
 });
 
+test('re-backfill is idempotent: dedups email-less users by phone, and any user by memberId', async () => {
+  const members = createMembers({ pglite: true });
+  // First backfill: an email-less, phone-login rider (the no-email edge) + an emailed user.
+  const r1 = await members.backfill([
+    { id: 'usr_p', name: 'Priya', phone: '+61400000001', role: 'rider' },
+    { id: 'usr_e', name: 'Eve', email: 'eve@x.com', role: 'customer' }
+  ], 'bunji');
+  assert.deepEqual([r1.created, r1.merged], [2, 0]);
+  assert.equal(await members.count(), 2);
+
+  // Re-run the SAME users → no duplicates: phone re-resolves Priya, email re-resolves Eve.
+  const r2 = await members.backfill([
+    { id: 'usr_p', name: 'Priya', phone: '+61400000001', role: 'rider' },
+    { id: 'usr_e', name: 'Eve', email: 'eve@x.com', role: 'customer' }
+  ], 'bunji');
+  assert.deepEqual([r2.created, r2.merged], [0, 2]);
+  assert.equal(await members.count(), 2);                 // still 2 — re-backfill safe
+
+  // After the cutover the service user carries memberId — the strongest dedup key (covers the
+  // email-less AND phone-less case, which no other key can).
+  const pid = r1.idMap['usr_p'];
+  const r3 = await members.upsertFromUser({ id: 'usr_p', memberId: pid, role: 'rider' }, 'bunji');
+  assert.deepEqual([r3.memberId, r3.merged], [pid, true]);
+  assert.equal(await members.count(), 2);
+  // source user id is recorded as the last-resort key
+  assert.equal((await members.getById(pid)).services.bunji.userId, 'usr_p');
+});
+
+test('directory store resolves email-less members by phone (pglite)', async () => {
+  const members = createMembers({ pglite: true });
+  const r = await members.backfill([{ id: 'usr_x', phone: '+61411111111', role: 'driver' }], 'bunji');
+  const mid = r.idMap['usr_x'];
+  assert.equal((await members.store.getUserByPhone('+61411111111')).id, mid);
+  assert.equal(await members.store.getUserByPhone('+61499999999'), null);
+});
+
 test('local mode: delegates to the service store; writes are refused', async () => {
   const localStore = {
     getUser: async id => (id === 'u_1' ? { id: 'u_1', role: 'customer' } : null),

@@ -1,6 +1,6 @@
 {
   "name": "coop-core",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "description": "Shared, domain-agnostic platform plumbing for cooperative apps (CoopBite, Bunji Ride). Zero runtime dependencies.",
   "type": "commonjs",
   "exports": {

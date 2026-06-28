@@ -31,7 +31,7 @@ function toMember(user, service, id) {
     joinedAt: user.joinedAt || user.createdAt || Date.now(),
     services: {}
   };
-  if (service && user.role) enrol(m, service, user.role, { status: user.status || 'active' });
+  if (service) enrol(m, service, user.role, { status: user.status || 'active', userId: user.id });
   return m;
 }
 
@@ -87,14 +87,22 @@ function createMembers({ coopDbUrl, replicaUrl, pglite, localStore } = {}) {
    * Returns { memberId, merged }. Used for live registration-sync and by backfill().
    */
   async function upsertFromUser(user, service) {
+    // Dedup priority — the first stable key that resolves wins, so re-running backfill is
+    // idempotent (no duplicate members) even for email-less users:
+    //   1. user.memberId — set on the service user after the cutover; the strongest link.
+    //   2. email — the cross-service person key (a shared identity).
+    //   3. phone — for email-less, phone-login members (riders).
+    // (services[service].userId, recorded by toMember/enrol, is the last-resort source key.)
     const email = (user.email || '').toLowerCase();
-    const existing = email ? await store.getUserByEmail(email) : null;
+    let existing = user.memberId ? await store.getUser(user.memberId) : null;
+    if (!existing && email) existing = await store.getUserByEmail(email);
+    if (!existing && !email && user.phone) existing = await store.getUserByPhone(user.phone);
     if (existing) {
-      enrol(existing, service, user.role, { status: user.status || 'active' });
+      enrol(existing, service, user.role, { status: user.status || 'active', userId: user.id });
       await upsert(existing);
       return { memberId: existing.id, merged: true };
     }
-    const m = toMember(user, service, newMemberId());
+    const m = toMember(user, service, user.memberId || newMemberId());
     await upsert(m);
     return { memberId: m.id, merged: false };
   }

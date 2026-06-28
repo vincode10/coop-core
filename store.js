@@ -267,6 +267,24 @@ function createStore(config) {
     const r = await (await initPg(), pgRead(`SELECT data FROM ${USERS_TABLE} WHERE email = $1`, [key]));
     return r.rows[0] ? r.rows[0].data : null;
   }
+  /** Phone lookup (cooperative dedup + phone-login). Uses the JSON body so it works whether or
+   *  not the split table indexes a `phone` column (the directory does; service tables may not). */
+  async function getUserByPhone(phone) {
+    if (!phone) return null;
+    const local = (load()[USERS] || []).find(u => u.phone && u.phone === phone);
+    if (local || MODE !== 'pg') return local || null;
+    const r = await (await initPg(), pgRead(`SELECT data FROM ${USERS_TABLE} WHERE data->>'phone' = $1`, [String(phone)]));
+    return r.rows[0] ? r.rows[0].data : null;
+  }
+  /** Resolve this service's local user by its cooperative member id (set during the P2 cutover).
+   *  Enables cross-service SSO: another app's token carries the member id; we find OUR local user. */
+  async function getUserByMemberId(mid) {
+    if (!mid) return null;
+    const local = (load()[USERS] || []).find(u => u.memberId === mid);
+    if (local || MODE !== 'pg') return local || null;
+    const r = await (await initPg(), pgRead(`SELECT data FROM ${USERS_TABLE} WHERE data->>'memberId' = $1`, [String(mid)]));
+    return r.rows[0] ? r.rows[0].data : null;
+  }
   async function countUsers() {
     if (MODE !== 'pg') return (load()[USERS] || []).length;
     await initPg();
@@ -283,7 +301,7 @@ function createStore(config) {
   return {
     MODE, DATA_FILE, runScoped, ensureLoaded, load, save, flush, abort,
     putBlob, getBlob, queryArchive, dbStats, nextId, reset, __pgQuery,
-    initPg, pgRead, getUser, getUserByEmail, countUsers
+    initPg, pgRead, getUser, getUserByEmail, getUserByPhone, getUserByMemberId, countUsers
   };
 }
 

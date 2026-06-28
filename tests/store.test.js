@@ -89,10 +89,13 @@ test('file: load/save round-trip + user helpers', async () => {
   fs.rmSync(f, { force: true });
   const s = createStore(schema({ dataFile: f }));
   assert.equal(s.MODE, 'file');
-  s.load().users.push({ id: 'u1', email: 'x@y.com', role: 'rider' });
+  s.load().users.push({ id: 'u1', email: 'x@y.com', role: 'rider', phone: '+61400000009', memberId: 'mbr_9' });
   s.save();
   assert.equal((await s.getUser('u1')).email, 'x@y.com');
   assert.equal((await s.getUserByEmail('X@Y.com')).id, 'u1');
+  assert.equal((await s.getUserByPhone('+61400000009')).id, 'u1');   // P2: phone lookup
+  assert.equal((await s.getUserByMemberId('mbr_9')).id, 'u1');       // P2: cross-service link
+  assert.equal(await s.getUserByMemberId('mbr_absent'), null);
   assert.equal(await s.countUsers(), 1);
   assert.match(s.nextId('ride'), /^ride_\d+$/);
 });

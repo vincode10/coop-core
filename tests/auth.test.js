@@ -29,6 +29,65 @@ test('tokenSign/tokenVerify round-trip; tamper + junk rejected', () => {
   delete process.env.COOP_SECRET;
 });
 
+test('requireRoleFor: member-aware when _member present, else legacy user.role', () => {
+  const guard = auth.requireRoleFor('coopbite');
+  // legacy fallback (no _member): checks flat user.role
+  assert.throws(() => guard(null, 'admin'), e => e.status === 401);
+  assert.throws(() => guard({ role: 'customer' }, 'admin'), e => e.status === 403);
+  assert.doesNotThrow(() => guard({ role: 'admin' }, 'admin'));
+  // member-aware: uses the member's coopbite service roles, not the (absent) flat role
+  const member = { id: 'mbr_1', services: { coopbite: { roles: ['restaurant'] }, bunji: { roles: ['rider'] } } };
+  const user = auth.attachMember({ id: 'u1' }, member);
+  assert.doesNotThrow(() => guard(user, 'restaurant'));
+  assert.throws(() => guard(user, 'admin'), e => e.status === 403);
+  // a role only held in ANOTHER service is not granted here
+  assert.throws(() => guard(user, 'rider'), e => e.status === 403);
+});
+
+test('attachMember is non-persisted (non-enumerable; absent from JSON + spread)', () => {
+  const user = auth.attachMember({ id: 'u1', role: 'customer' }, { id: 'mbr_1' });
+  assert.equal(user._member.id, 'mbr_1');
+  assert.deepEqual(Object.keys(user), ['id', 'role']);              // _member not enumerable
+  assert.equal(JSON.parse(JSON.stringify(user))._member, undefined); // never serialised
+  assert.equal({ ...user }._member, undefined);                      // never spread
+});
+
+test('createMemberResolver: enriches same-app user, SSO cross-app, fallback-to-local on error', async () => {
+  process.env.COOP_SECRET = 'k1';
+  const cbUser = { id: 'usr_1', role: 'customer', memberId: 'mbr_1' };
+  const store = {
+    getUser: async id => (id === 'usr_1' ? { ...cbUser } : null),
+    getUserByMemberId: async mid => (mid === 'mbr_1' ? { ...cbUser } : null)
+  };
+  const member = { id: 'mbr_1', services: { coopbite: { roles: ['customer'] } } };
+  const members = { shared: true, getById: async id => (id === 'mbr_1' ? member : null) };
+  const resolver = auth.createMemberResolver({ store, members });
+  const bearer = p => ({ headers: { authorization: 'Bearer ' + auth.tokenSign(p) } });
+
+  // same-app token (uid resolves locally) → local user + attached member
+  const a = await resolver(bearer({ uid: 'usr_1', mid: 'mbr_1', exp: Date.now() + 60000 }));
+  assert.equal(a.id, 'usr_1');
+  assert.equal(a._member.id, 'mbr_1');
+
+  // cross-app token (uid is another service's, not found locally) → resolved via memberId (SSO)
+  const b = await resolver(bearer({ uid: 'br_999', mid: 'mbr_1', exp: Date.now() + 60000 }));
+  assert.equal(b.id, 'usr_1');
+  assert.equal(b._member.id, 'mbr_1');
+
+  // directory down → still returns the local user (resilient), just without _member
+  const flaky = { ...store, getUserByMemberId: store.getUserByMemberId };
+  const badMembers = { shared: true, getById: async () => { throw new Error('coop DB down'); } };
+  const c = await auth.createMemberResolver({ store: flaky, members: badMembers })(
+    bearer({ uid: 'usr_1', mid: 'mbr_1', exp: Date.now() + 60000 }));
+  assert.equal(c.id, 'usr_1');
+  assert.equal(c._member, undefined);
+
+  // no members configured → behaves like createUserFromReq
+  const d = await auth.createMemberResolver({ store })(bearer({ uid: 'usr_1', exp: Date.now() + 60000 }));
+  assert.equal(d.id, 'usr_1');
+  delete process.env.COOP_SECRET;
+});
+
 test('createUserFromReq resolves Bearer → unexpired token → store.getUser', async () => {
   process.env.COOP_SECRET = 'k1';
   const store = { getUser: async id => (id === 'u1' ? { id: 'u1', role: 'rider' } : null) };

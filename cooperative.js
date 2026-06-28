@@ -38,11 +38,14 @@ function requireServiceRole(member, service, ...roles) {
   if (!hasServiceRole(member, service, ...roles)) { const e = new Error('Forbidden for your role'); e.status = 403; throw e; }
 }
 
-/** Enrol a member in a service with a role (idempotent, additive). Returns the member. */
-function enrol(member, service, role, { status = 'active' } = {}) {
+/** Enrol a member in a service with a role (idempotent, additive). Returns the member.
+ *  `userId` (optional) records the service's own user id for this member — a stable secondary
+ *  dedup key so a re-backfill of email-less users doesn't duplicate them. */
+function enrol(member, service, role, { status = 'active', userId } = {}) {
   member.services = member.services || {};
   const svc = member.services[service] || (member.services[service] = { roles: [], status });
   if (role && !svc.roles.includes(role)) svc.roles.push(role);
+  if (userId && !svc.userId) svc.userId = userId;
   return member;
 }
 
