@@ -35,7 +35,7 @@ deployed and no prod data has been touched yet — what remains is the gated ops
 3. Deploy both apps (CoopBite git-auto-deploys; Bunji manual). Read-only prod smoke: login/me on
    both, then a CoopBite token against a Bunji route for the same member → SSO.
 
-App code changes are **uncommitted** in `~/coopbite` + `~/bunjiride` (commit at deploy time).
+**Both apps committed and deployed (29 Jun 2026).** Prod smoke passed: login/me on both apps.
 
 ---
 
@@ -133,11 +133,8 @@ All wired, no-op until configured. See each app's `docs/STATUS.md` / `API.md`.
 ## State snapshot (29 Jun 2026)
 
 - **coop-core** `v0.9.1` · master · 69 tests · public repo · 17 modules · P2 auth primitives shipped.
-- **CoopBite** `v2.35.0` live at coopbite.vercel.app · CI green · 234 tests · git-auto-deploys ·
-  **local working tree** on `coop-core#v0.9.1` with P2 wiring (uncommitted, NOT yet deployed; prod
-  still runs `coop-core#v0.8.2`).
-- **Bunji Ride** live at bunjiride.vercel.app · 73 tests · **local working tree** on
-  `coop-core#v0.9.1` with P2 wiring (uncommitted, NOT yet deployed) · **manual deploy**
+- **CoopBite** `v2.36.0` live at coopbite.vercel.app · 234 tests · git-auto-deploys · on `coop-core#v0.9.1` · P2 deployed.
+- **Bunji Ride** `v0.2.0` live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.9.1` · P2 deployed · **manual deploy**
   (`vercel deploy --prod --yes --scope vincode10s-projects`; *not* git-auto-deploy).
 - **The Cooperative** Neon DB (Sydney) live · `coop_members` = 15 members · `COOP_DATABASE_URL`
   set in both Vercel projects (Production + Development).
