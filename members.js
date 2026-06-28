@@ -52,6 +52,7 @@ function createMembers({ coopDbUrl, replicaUrl, pglite, localStore } = {}) {
       getByEmail: email => localStore.getUserByEmail(email),
       getByPhone: phone => (localStore.getUserByPhone ? localStore.getUserByPhone(phone) : Promise.resolve(null)),
       count: () => localStore.countUsers(),
+      async upsertFromUser() { throw new Error('directory sync requires a shared cooperative directory (COOP_DATABASE_URL)'); },
       async upsert() { throw new Error('member upsert requires a shared cooperative directory (COOP_DATABASE_URL)'); },
       async backfill() { throw new Error('backfill requires a shared cooperative directory (COOP_DATABASE_URL)'); }
     };
@@ -81,24 +82,33 @@ function createMembers({ coopDbUrl, replicaUrl, pglite, localStore } = {}) {
   }
 
   /**
-   * One-time (idempotent) backfill of a service's users into the directory, deduplicated by
-   * email: an existing member gains this service's role enrolment; a new person is created.
-   * Returns { created, merged } and a id-map { serviceUserId → memberId } for the cutover.
+   * Insert or enrol ONE service user into the directory (idempotent). Deduplicated by email:
+   * an existing member gains this service's role enrolment; a new person gets a fresh member.
+   * Returns { memberId, merged }. Used for live registration-sync and by backfill().
+   */
+  async function upsertFromUser(user, service) {
+    const email = (user.email || '').toLowerCase();
+    const existing = email ? await store.getUserByEmail(email) : null;
+    if (existing) {
+      enrol(existing, service, user.role, { status: user.status || 'active' });
+      await upsert(existing);
+      return { memberId: existing.id, merged: true };
+    }
+    const m = toMember(user, service, newMemberId());
+    await upsert(m);
+    return { memberId: m.id, merged: false };
+  }
+
+  /**
+   * One-time (idempotent) bulk backfill of a service's users. Returns { created, merged } and an
+   * id-map { serviceUserId → memberId } for the cutover.
    */
   async function backfill(users, service) {
     let created = 0, merged = 0; const idMap = {};
     for (const u of users) {
-      const email = (u.email || '').toLowerCase();
-      const existing = email ? await store.getUserByEmail(email) : null;
-      if (existing) {
-        enrol(existing, service, u.role, { status: u.status || 'active' });
-        await upsert(existing);
-        idMap[u.id] = existing.id; merged += 1;
-      } else {
-        const m = toMember(u, service);
-        await upsert(m);
-        idMap[u.id] = m.id; created += 1;
-      }
+      const r = await upsertFromUser(u, service);
+      idMap[u.id] = r.memberId;
+      if (r.merged) merged += 1; else created += 1;
     }
     return { created, merged, idMap };
   }
@@ -109,7 +119,7 @@ function createMembers({ coopDbUrl, replicaUrl, pglite, localStore } = {}) {
     getByEmail: email => store.getUserByEmail(email),
     getByPhone: phone => store.getUserByPhone ? store.getUserByPhone(phone) : Promise.resolve(null),
     count: () => store.countUsers(),
-    upsert, backfill
+    upsert, upsertFromUser, backfill
   };
 }
 
