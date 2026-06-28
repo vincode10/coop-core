@@ -5,29 +5,30 @@
 
 ---
 
-## ▶ IMMEDIATE RESUME POINT — Platform P1 cutover (shared member directory)
+## ▶ IMMEDIATE RESUME POINT — Platform P1 cutover (auth → shared directory)
 
-**Where we are:** the directory *mechanism* is built and tested (`coop-core/members`, v0.8.0,
-gated). You created the Neon project **`the-cooperative`** / database **`cooperative`** (Sydney).
-The cutover is blocked only on the connection string being exposed to both apps.
+**DONE (28 Jun 2026):** shared directory **provisioned + backfilled + verified**.
+- Neon project **`the-cooperative`** (Sydney) created; its `neondb` is the cooperative DB
+  (the `cooperative` db name didn't get created — using the project default, which is fine since
+  the directory tables are `coop_`-prefixed). `COOP_DATABASE_URL` set in **both** Vercel projects
+  (Production + Development; Preview pending — non-critical).
+- `coop-core/members` v0.8.1 (`mbr_` member ids — service user-ids like `usr_1008` collide across
+  apps, so members get fresh ids; `idMap` links them).
+- **Backfill ran: 15 distinct members** (8 CoopBite + 7 Bunji) now in `coop_members`. No cross-service
+  merges (seed emails don't overlap `@coopbite.org`/`@bunjiride.au` — merge logic is tested though).
+- Apps **not yet wired** — coopbite stays on `coop-core#v0.6.0` (deployed v2.34.0), directory unused.
 
-**You — finish provisioning (steps 2–3 of the earlier instructions):**
-1. Neon → the-cooperative → **Connection Details** → database `cooperative` → **Pooled connection ON**
-   (host contains `-pooler`) → copy the string.
-2. Add it as env var **`COOP_DATABASE_URL`** to **both** Vercel projects (`coopbite`, `bunjiride`),
-   scope Production+Preview+Development. *(Or paste the string and I'll `vercel env add` it.)*
+**NEXT — the cutover (changes the auth hot path; do carefully, RESILIENT):**
+1. Persist the `idMap` → set `user.memberId` on each service user (additive write to cb_users/br_users;
+   re-run backfill is idempotent for emailed users — but **no-email users duplicate on re-run**, so
+   add a phone/id secondary key OR snapshot the idMap once).
+2. Wire each app's `auth` to resolve the member via `members.getByEmail/getById` **with fallback-to-local
+   on any directory error** (don't make login hard-depend on a 3rd DB's availability). Gated on
+   `COOP_DATABASE_URL`. Deploy → read-only prod smoke (login/me both apps). SSO falls out (shared token).
+3. Registrations create/enrol a member + a thin service user.
 
-**Then me (P1 cutover — all staged & reversible; unset the env → instant fallback to today):**
-1. `vercel env pull` to read `COOP_DATABASE_URL`; create the `coop_members` table (auto on first connect).
-2. Run the **backfill** (`members.backfill`) for each app: read users → dedup/merge by email into the
-   directory; persist the returned `idMap` → set `user.memberId` on each service user. Verify counts.
-3. **Dual-read window:** wire each app's `auth` to resolve the member via `members.getByEmail/getById`
-   (gated: falls back to local store when the env is unset); service handlers still read their local
-   user by `memberId`. Deploy → read-only prod smoke (login/me on both apps).
-4. Cutover: registrations create/enrol a member + a thin service user. SSO works automatically
-   (same `coop-core/secret` token domain).
-
-Runbook also in `members.js` (bottom) and `COOPERATIVE_PLATFORM.md` §7.
+**Activation note:** to run another backfill / the cutover, re-pull both apps' DB URLs
+(`vercel env pull`), and `COOP_DATABASE_URL` from either project. Runbook also in `members.js`.
 
 ---
 
