@@ -5,20 +5,23 @@
 
 ---
 
-## ▶ IMMEDIATE RESUME POINT — Ops (backfill migration)
+## ▶ IMMEDIATE RESUME POINT — nothing blocking; all platform phases complete
+
+**OPS COMPLETE (29 Jun 2026).** All four migration scripts ran successfully:
+- CoopBite governance: migrated 1 proposal ("Direct the first-year surplus to the Driver Safety Fund" → `prop_51f4c2499243`)
+- CoopBite treasury: already seeded ($4.28 contribution), no claims
+- Bunji governance: no local proposals to migrate (Bunji had none)
+- Bunji treasury: already seeded ($120 contribution), seeded $10 safety fund from Bunji donations
+- **Shared cooperative DB state (verified):** 2 proposals, $124.28 treasury surplus, $10 safety fund — visible from either app.
 
 **P5 COMPLETE (29 Jun 2026).** `~/coop-service-starter` pushed to [vincode10/coop-service-starter](https://github.com/vincode10/coop-service-starter) as a GitHub Template repo.
 - 19 files: `server/{store,auth,directory,coopgov,cooptreasury,seed,api,index}.js`, `vercel.json`, `.env.example`, 3 migration scripts, smoke tests (13 green).
 - Fork → set `SERVICE_NAME`, `DATABASE_URL`, `COOP_DATABASE_URL`, `COOP_SECRET` → deploy to Vercel. Auth, SSO, governance, treasury all wired.
-- **Next:** run the ops migration scripts on CoopBite + Bunji to backfill historical proposals + safety fund claims into the shared cooperative DB (see backfill section below).
 
 **P4 COMPLETE (29 Jun 2026).** Cooperative treasury live on both apps.
 - `coop-core/treasury.js` v0.11.0 — `trs_` prefixed tables, append-only entries split table (contributions/expenses), cooperative safety fund (claims + resolve lifecycle), distributions; 89 tests green.
 - `server/cooptreasury.js` singleton in each app; all treasury routes delegate to shared DB when `COOP_DATABASE_URL` set; falls back to per-app local summary read-only.
 - Routes: `GET /api/treasury`, `GET/POST /api/treasury/safety-fund`, `POST /api/admin/treasury/contribute|expense|distribute`, `GET /api/admin/treasury/contributions`.
-- Migration scripts at `scripts/migrate-treasury.js` in both apps.
-- **Prod smoke verified:** CoopBite posted $4.28 + Bunji posted $120.00 → cooperative treasury shows $124.28 total, `byService: {coopbite: 428, bunji: 12000}`, visible from either app.
-- **Next ops:** run migration scripts to backfill historical surplus + safety fund claims.
 
 ---
 
@@ -122,6 +125,7 @@ All wired, no-op until configured. See each app's `docs/STATUS.md` / `API.md`.
   (`vercel deploy --prod --yes --scope vincode10s-projects`; *not* git-auto-deploy).
 - **The Cooperative** Neon DB (Sydney) live · `coop_members` = 15 members · `COOP_DATABASE_URL`
   set in both Vercel projects (Production + Development).
+  - Governance: 2 proposals (1 coop-wide, 1 CoopBite-scoped)
+  - Treasury: $124.28 pooled surplus (CoopBite $4.28 + Bunji $120.00) · $10.00 safety fund
 - Marketing site live at coopbite-site.vercel.app (+ `/posts`).
-- All three repos clean (0 tracked changes). *(Note: an unrelated Obsidian vault sits untracked at
-  `~/coopbite/coopbite/` — user's, not part of the repo.)*
+- All repos clean. *(Unrelated Obsidian vault at `~/coopbite/coopbite/` — user's, not part of the repo.)*
