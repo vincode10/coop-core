@@ -5,12 +5,15 @@
 
 ---
 
-## ▶ IMMEDIATE RESUME POINT — Platform P3 (cooperative governance)
+## ▶ IMMEDIATE RESUME POINT — Platform P4 (cooperative treasury)
 
-**P2 COMPLETE (29 Jun 2026).** SSO verified on production: a CoopBite token (`uid=usr_1040`,
-customer) resolves the Bunji local user (`usr_1013`, rider) via the shared `memberId` — two service
-users, one cooperative member, one token. All 15 seed members linked; `COOP_SECRET` identical across
-both apps. P3 is next.
+**P3 COMPLETE (29 Jun 2026).** Shared cooperative governance live on both apps.
+- `coop-core/governance.js` v0.10.0 — `gov_` prefixed tables, cooperative memberId vote keys, yes/no/abstain, scope, kinds; 79 tests green.
+- `store.js` read-mode split-table fix: `ensureLoaded(false)` now merges split rows into `c.db` (was using empty legacy doc only).
+- `server/coopgov.js` singleton in each app; proposal/vote/close routes delegate to shared store when `COOP_DATABASE_URL` set; falls back to local read-only view.
+- Migration scripts at `scripts/migrate-governance.js` in both apps (idempotent, translates vote keys).
+- **Prod smoke verified:** proposal `prop_ccc0656ed97d` created in CoopBite, instantly visible in Bunji; cross-app votes tallied: `{ yes: 2, no: 0, abstain: 0 }`.
+- **Next ops:** run migration scripts to backfill existing per-app proposals into shared store.
 
 ---
 
@@ -48,7 +51,7 @@ both apps. P3 is next.
 | P0 | Platform framing + `coop-core/cooperative` member-role model | — | ✅ done (v0.7.0) |
 | P1 | Shared member directory `coop-core/members` — provisioned, backfilled (15 members), **register-sync live on both apps** | done (v0.8.2; CoopBite v2.35.0) | ✅ done |
 | P2 | **Auth + SSO via the directory** — member-scoped tokens, `userFromReq` cross-service w/ fallback-to-local, `requireRoleFor(service)`, persist `user.memberId`, dedup-safe re-backfill | done (coop-core v0.9.1; both apps deployed; SSO verified in prod) | ✅ done |
-| P3 | **Cooperative governance** (one member-one-vote, co-op-wide) — *resolves old Phase 4* | after P2 | ⏳ pending |
+| P3 | **Cooperative governance** (one member-one-vote, co-op-wide) — *resolves old Phase 4* | after P2 | ✅ done (v0.10.0; both apps deployed; smoke verified) |
 | P4 | **Cooperative treasury** — pooled surplus, dividends, Safety Fund as co-op instruments | after P2 | ⏳ pending |
 | P5 | New-service template (boot a service on the platform) | after P1–P4 | ⏳ pending |
 
@@ -107,9 +110,9 @@ All wired, no-op until configured. See each app's `docs/STATUS.md` / `API.md`.
 
 ## State snapshot (29 Jun 2026)
 
-- **coop-core** `v0.9.1` · master · 69 tests · public repo · 17 modules · P2 auth primitives shipped.
-- **CoopBite** `v2.36.0` live at coopbite.vercel.app · 234 tests · git-auto-deploys · on `coop-core#v0.9.1` · P2 deployed.
-- **Bunji Ride** `v0.2.0` live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.9.1` · P2 deployed · **manual deploy**
+- **coop-core** `v0.10.0` · master · 79 tests · public repo · 18 modules · P3 governance shipped.
+- **CoopBite** `v2.37.0` live at coopbite.vercel.app · 234 tests · git-auto-deploys · on `coop-core#v0.10.0` · P3 deployed.
+- **Bunji Ride** `v0.3.0` live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.10.0` · P3 deployed · **manual deploy**
   (`vercel deploy --prod --yes --scope vincode10s-projects`; *not* git-auto-deploy).
 - **The Cooperative** Neon DB (Sydney) live · `coop_members` = 15 members · `COOP_DATABASE_URL`
   set in both Vercel projects (Production + Development).
