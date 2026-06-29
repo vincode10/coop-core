@@ -5,7 +5,12 @@
 
 ---
 
-## ▶ IMMEDIATE RESUME POINT — Platform P5 (new-service template)
+## ▶ IMMEDIATE RESUME POINT — Ops (backfill migration)
+
+**P5 COMPLETE (29 Jun 2026).** `~/coop-service-starter` pushed to [vincode10/coop-service-starter](https://github.com/vincode10/coop-service-starter) as a GitHub Template repo.
+- 19 files: `server/{store,auth,directory,coopgov,cooptreasury,seed,api,index}.js`, `vercel.json`, `.env.example`, 3 migration scripts, smoke tests (13 green).
+- Fork → set `SERVICE_NAME`, `DATABASE_URL`, `COOP_DATABASE_URL`, `COOP_SECRET` → deploy to Vercel. Auth, SSO, governance, treasury all wired.
+- **Next:** run the ops migration scripts on CoopBite + Bunji to backfill historical proposals + safety fund claims into the shared cooperative DB (see backfill section below).
 
 **P4 COMPLETE (29 Jun 2026).** Cooperative treasury live on both apps.
 - `coop-core/treasury.js` v0.11.0 — `trs_` prefixed tables, append-only entries split table (contributions/expenses), cooperative safety fund (claims + resolve lifecycle), distributions; 89 tests green.
@@ -53,7 +58,7 @@
 | P2 | **Auth + SSO via the directory** — member-scoped tokens, `userFromReq` cross-service w/ fallback-to-local, `requireRoleFor(service)`, persist `user.memberId`, dedup-safe re-backfill | done (coop-core v0.9.1; both apps deployed; SSO verified in prod) | ✅ done |
 | P3 | **Cooperative governance** (one member-one-vote, co-op-wide) — *resolves old Phase 4* | after P2 | ✅ done (v0.10.0; both apps deployed; smoke verified) |
 | P4 | **Cooperative treasury** — pooled surplus, dividends, Safety Fund as co-op instruments | after P2 | ✅ done (v0.11.0; both apps deployed; smoke verified) |
-| P5 | New-service template (boot a service on the platform) | after P1–P4 | ⏳ pending |
+| P5 | New-service template (boot a service on the platform) | after P1–P4 | ✅ done (vincode10/coop-service-starter; GitHub Template; 13 smoke tests green) |
 
 **P2 is the big, risky one** — a multi-route auth refactor across two live apps. Bake in the
 fallback-to-local so login can never hard-depend on the cooperative DB. Also fix the no-email
@@ -110,7 +115,8 @@ All wired, no-op until configured. See each app's `docs/STATUS.md` / `API.md`.
 
 ## State snapshot (29 Jun 2026)
 
-- **coop-core** `v0.11.0` · master · 89 tests · public repo · 19 modules · P4 treasury shipped.
+- **coop-core** `v0.11.0` · master · 89 tests · public repo · 19 modules · P4 + P5 shipped.
+- **coop-service-starter** v0.1.0 · [vincode10/coop-service-starter](https://github.com/vincode10/coop-service-starter) · GitHub Template · 13 smoke tests.
 - **CoopBite** `v2.38.0` live at coopbite.vercel.app · 234 tests · git-auto-deploys · on `coop-core#v0.11.0` · P4 deployed.
 - **Bunji Ride** `v0.4.0` live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.11.0` · P4 deployed · **manual deploy**
   (`vercel deploy --prod --yes --scope vincode10s-projects`; *not* git-auto-deploy).
