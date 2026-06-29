@@ -193,9 +193,12 @@ function createStore(config) {
     c.snaps = {};
     for (const { table, key } of Object.values(SPLIT)) {
       const items = (await q(`SELECT data FROM ${table}`)).rows.map(row => row.data);
-      c.snaps[key] = new Map(items.map(it => [it.id, JSON.stringify(it)]));
+      if (mutating) c.snaps[key] = new Map(items.map(it => [it.id, JSON.stringify(it)]));
       const legacy = Array.isArray(c.db[key]) ? c.db[key] : [];
-      c.db[key] = mutating ? items.concat(legacy) : legacy;
+      // Always merge split-table rows back into the in-memory doc regardless of mode.
+      // pgPersist strips split keys from the JSON doc, so legacy[] is always empty on first
+      // load — items[] is the authoritative source in both read and write paths.
+      c.db[key] = items.concat(legacy);
     }
     return c.db;
   }

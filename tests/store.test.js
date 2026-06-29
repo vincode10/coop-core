@@ -42,10 +42,11 @@ test('pg: write tx → flush persists doc + split tables; indexed reads work', a
   assert.equal((await s.getUserByEmail('a@b.com')).id, 'u1');
   assert.equal(await s.countUsers(), 1);
 
-  // split item is queryable via the indexed column (read request → not materialized)
+  // split items are now materialized in read mode too (ensureLoaded always merges split rows)
   await s.runScoped(async () => {
     await s.ensureLoaded(false);
-    assert.deepEqual(s.load().items, [], 'reads do not materialize split arrays');
+    assert.equal(s.load().items.length, 1, 'read mode materializes split arrays');
+    assert.equal(s.load().items[0].id, 'i1');
     const r = await s.pgRead('SELECT data FROM tc_items WHERE owner = $1', ['u1']);
     assert.equal(r.rows[0].data.id, 'i1');
   });
