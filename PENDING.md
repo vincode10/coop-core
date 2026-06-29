@@ -5,15 +5,15 @@
 
 ---
 
-## ▶ IMMEDIATE RESUME POINT — Platform P4 (cooperative treasury)
+## ▶ IMMEDIATE RESUME POINT — Platform P5 (new-service template)
 
-**P3 COMPLETE (29 Jun 2026).** Shared cooperative governance live on both apps.
-- `coop-core/governance.js` v0.10.0 — `gov_` prefixed tables, cooperative memberId vote keys, yes/no/abstain, scope, kinds; 79 tests green.
-- `store.js` read-mode split-table fix: `ensureLoaded(false)` now merges split rows into `c.db` (was using empty legacy doc only).
-- `server/coopgov.js` singleton in each app; proposal/vote/close routes delegate to shared store when `COOP_DATABASE_URL` set; falls back to local read-only view.
-- Migration scripts at `scripts/migrate-governance.js` in both apps (idempotent, translates vote keys).
-- **Prod smoke verified:** proposal `prop_ccc0656ed97d` created in CoopBite, instantly visible in Bunji; cross-app votes tallied: `{ yes: 2, no: 0, abstain: 0 }`.
-- **Next ops:** run migration scripts to backfill existing per-app proposals into shared store.
+**P4 COMPLETE (29 Jun 2026).** Cooperative treasury live on both apps.
+- `coop-core/treasury.js` v0.11.0 — `trs_` prefixed tables, append-only entries split table (contributions/expenses), cooperative safety fund (claims + resolve lifecycle), distributions; 89 tests green.
+- `server/cooptreasury.js` singleton in each app; all treasury routes delegate to shared DB when `COOP_DATABASE_URL` set; falls back to per-app local summary read-only.
+- Routes: `GET /api/treasury`, `GET/POST /api/treasury/safety-fund`, `POST /api/admin/treasury/contribute|expense|distribute`, `GET /api/admin/treasury/contributions`.
+- Migration scripts at `scripts/migrate-treasury.js` in both apps.
+- **Prod smoke verified:** CoopBite posted $4.28 + Bunji posted $120.00 → cooperative treasury shows $124.28 total, `byService: {coopbite: 428, bunji: 12000}`, visible from either app.
+- **Next ops:** run migration scripts to backfill historical surplus + safety fund claims.
 
 ---
 
@@ -52,7 +52,7 @@
 | P1 | Shared member directory `coop-core/members` — provisioned, backfilled (15 members), **register-sync live on both apps** | done (v0.8.2; CoopBite v2.35.0) | ✅ done |
 | P2 | **Auth + SSO via the directory** — member-scoped tokens, `userFromReq` cross-service w/ fallback-to-local, `requireRoleFor(service)`, persist `user.memberId`, dedup-safe re-backfill | done (coop-core v0.9.1; both apps deployed; SSO verified in prod) | ✅ done |
 | P3 | **Cooperative governance** (one member-one-vote, co-op-wide) — *resolves old Phase 4* | after P2 | ✅ done (v0.10.0; both apps deployed; smoke verified) |
-| P4 | **Cooperative treasury** — pooled surplus, dividends, Safety Fund as co-op instruments | after P2 | ⏳ pending |
+| P4 | **Cooperative treasury** — pooled surplus, dividends, Safety Fund as co-op instruments | after P2 | ✅ done (v0.11.0; both apps deployed; smoke verified) |
 | P5 | New-service template (boot a service on the platform) | after P1–P4 | ⏳ pending |
 
 **P2 is the big, risky one** — a multi-route auth refactor across two live apps. Bake in the
@@ -110,9 +110,9 @@ All wired, no-op until configured. See each app's `docs/STATUS.md` / `API.md`.
 
 ## State snapshot (29 Jun 2026)
 
-- **coop-core** `v0.10.0` · master · 79 tests · public repo · 18 modules · P3 governance shipped.
-- **CoopBite** `v2.37.0` live at coopbite.vercel.app · 234 tests · git-auto-deploys · on `coop-core#v0.10.0` · P3 deployed.
-- **Bunji Ride** `v0.3.0` live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.10.0` · P3 deployed · **manual deploy**
+- **coop-core** `v0.11.0` · master · 89 tests · public repo · 19 modules · P4 treasury shipped.
+- **CoopBite** `v2.38.0` live at coopbite.vercel.app · 234 tests · git-auto-deploys · on `coop-core#v0.11.0` · P4 deployed.
+- **Bunji Ride** `v0.4.0` live at bunjiride.vercel.app · 73 tests · on `coop-core#v0.11.0` · P4 deployed · **manual deploy**
   (`vercel deploy --prod --yes --scope vincode10s-projects`; *not* git-auto-deploy).
 - **The Cooperative** Neon DB (Sydney) live · `coop_members` = 15 members · `COOP_DATABASE_URL`
   set in both Vercel projects (Production + Development).
